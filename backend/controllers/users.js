@@ -1,4 +1,6 @@
 const User = require('../models/user');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 module.exports.getAllUsers = (req, res) => {
   User.find({})
@@ -21,12 +23,26 @@ module.exports.getUser = (req, res) => {
     });
 };
 
+module.exports.getCurrentUser = (req, res) => {
+  console.log(req.user);
+  User.findById(req.user._id)
+    .then((user) => {
+      if (!user) return res.status(404).send({ message: 'User not found.' });
+      return res.send({ data: user });
+    })
+    .catch((err) => {
+      if (err.name === 'CastError') return res.status(400).send({ message: 'User ID is not valid.' });
+      return res.status(500).send({ message: 'Requested resource was not located.' });
+    });
+}
+
 module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
+  const { name, about, avatar, email, password } = req.body;
 
-  if (!name || !about || !avatar) res.status(400).send({ message: 'Please provide a valid user name, about section, and avatar link.' });
-
-  User.create({ name, about, avatar })
+  bcrypt.hash(password, 10)
+    .then(hash => {
+      return User.create({ name, about, avatar, email, password: hash });
+      })
     .then((user) => {
       if (!user) return res.status(500).send({ message: 'Requested resource was not located.' });
       return res.send({ data: user });
@@ -77,3 +93,20 @@ module.exports.updateUserInformation = (req, res) => {
       return res.status(500).send({ message: 'Requested resource was not located.' });
     });
 };
+
+module.exports.login = (req, res) => {
+  const { email, password } = req.body;
+
+  User.findUserByCredentials(email, password)
+    .then((user) => {
+
+      const token = jwt.sign({ _id: user._id }, 'f04120bcbe69520287749a90ac7a3ac069d11fdc805a76d1e01b87fe3ff7053c',
+        { expiresIn: '7d' }
+      )
+
+      res.send({ token })
+    })
+    .catch((err) => {
+      res.status(401).send({ message: err.message })
+    });
+}

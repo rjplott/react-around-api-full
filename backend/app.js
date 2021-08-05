@@ -1,17 +1,14 @@
 const express = require('express');
-
 const app = express();
-
 const helmet = require('helmet');
-
 const mongoose = require('mongoose');
-
 const bodyParser = require('body-parser');
-
 const cardRouter = require('./routes/cards');
-
 const userRouter = require('./routes/users');
+const auth = require('./middlewares/auth');
+const cors = require('cors');
 
+const { login, createUser } = require('./controllers/users');
 const { PORT = 3000 } = process.env;
 
 mongoose.connect('mongodb://localhost:27017/aroundb', {
@@ -22,20 +19,16 @@ mongoose.connect('mongodb://localhost:27017/aroundb', {
 });
 
 app.use(helmet());
+app.use(cors());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use((req, res, next) => {
-  req.user = {
-    _id: '60db84193688413faf2a5208',
-  };
+app.post('/signin', login);
+app.post('/signup', createUser);
 
-  next();
-});
-
+app.use(auth);
 app.use('/', cardRouter);
-
 app.use('/', userRouter);
 
 app.get('*', (req, res) => {

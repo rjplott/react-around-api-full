@@ -26,7 +26,14 @@ module.exports.createCard = (req, res) => {
 };
 
 module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndRemove(req.params.cardId)
+  Card.findById(req.params.cardId)
+    .then((card) => {
+      if (card.owner.toString() !== req.user._id) {
+        return Promise.reject(new Error('User not authorized.'))
+      }
+      return card;
+    })
+    .then((card) => Card.findByIdAndRemove(card._id))
     .then((card) => {
       if (!card) return res.status(404).send({ message: 'Card not found' });
       return res.send({ data: card });
