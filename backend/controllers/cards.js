@@ -1,74 +1,64 @@
 const Card = require('../models/card');
+const NotFoundError = require('../errors/not-found-error');
+const BadRequestError = require('../errors/bad-request-error');
+const AuthenticationError = require('../errors/auth-error');
 
-module.exports.getCards = (req, res) => {
+module.exports.getCards = (req, res, next) => {
   Card.find({})
     .then((cards) => {
-      if (!cards) res.status(500).send({ message: 'Requested resource was not located.' });
+      if (!cards) throw new Error('Requested resource was not located.');
       res.send({ data: cards });
     })
-    .catch(() => res.status(500).send({ message: 'Requested resource was not located.' }));
+    .catch(next);
 };
 
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
 
-  if (!name || !link) res.status(400).send({ message: 'Please provide a card name and link. ' });
+  if (!name || !link) throw new BadRequestError('Please provide a card name and link. ');
 
   Card.create({ name, link, owner: req.user._id })
     .then((card) => {
-      if (!card) res.status(500).send({ message: 'Requested resource was not located.' });
+      if (!card) throw new Error('Requested resource was not located.');
       res.send({ data: card });
     })
-    .catch((err) => {
-      if (err.name === 'ValidationError') res.status(400).send({ message: 'Please provide a valid URL' });
-      res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };
 
-module.exports.deleteCard = (req, res) => {
+module.exports.deleteCard = (req, res, next) => {
   Card.findById(req.params.cardId)
     .then((card) => {
       if (card.owner.toString() !== req.user._id) {
-        return Promise.reject(new Error('User not authorized.'))
+        return Promise.reject(new AuthenticationError('User not authorized.'))
       }
       return card;
     })
     .then((card) => Card.findByIdAndRemove(card._id))
     .then((card) => {
-      if (!card) return res.status(404).send({ message: 'Card not found' });
+      if (!card) throw new NotFoundError('Card not found');
       return res.send({ data: card });
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return res.status(400).send({ message: 'Card ID is not valid.' });
-
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };
 
-module.exports.addLike = (req, res) => {
+module.exports.addLike = (req, res, next) => {
   Card.findByIdAndUpdate(req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true })
     .then((card) => {
-      if (!card) return res.status(404).send({ message: 'Card not found' });
+      if (!card) throw new NotFoundError('Card not found');
       return res.send({ data: card });
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return res.status(400).send({ message: 'Card ID is not valid.' });
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };
 
-module.exports.deleteLike = (req, res) => {
+module.exports.deleteLike = (req, res, next) => {
   Card.findByIdAndUpdate(req.params.cardId,
     { $pull: { likes: req.user._id } },
     { new: true })
     .then((card) => {
-      if (!card) return res.status(404).send({ message: 'Card not found' });
+      if (!card) throw new NotFoundError('Card not found');
       return res.send({ data: card });
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return res.status(400).send({ message: 'Card ID is not valid.' });
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };

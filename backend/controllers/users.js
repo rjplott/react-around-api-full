@@ -2,41 +2,41 @@ const User = require('../models/user');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-module.exports.getAllUsers = (req, res) => {
+require('dotenv').config();
+
+const { NODE_ENV, JWT_SECRET } = process.env;
+
+const BadRequestError = require('../errors/bad-request-error');
+const NotFoundError = require('../errors/not-found-error');
+
+module.exports.getAllUsers = (req, res, next) => {
   User.find({})
     .then((users) => {
-      if (!users) return res.status(404).send({ message: 'No users were found.' });
+      if (!users) throw new NotFoundError('No users were found.');
       return res.send({ data: users });
     })
-    .catch(() => res.status(500).send({ message: 'Requested resource was not located.' }));
+    .catch(next);
 };
 
-module.exports.getUser = (req, res) => {
+module.exports.getUser = (req, res, next) => {
   User.findById(req.params.id)
     .then((user) => {
-      if (!user) return res.status(404).send({ message: 'User not found.' });
+      if (!user) throw new NotFoundError('User not found.');
       return res.send({ data: user });
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return res.status(400).send({ message: 'User ID is not valid.' });
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };
 
-module.exports.getCurrentUser = (req, res) => {
-  console.log(req.user);
+module.exports.getCurrentUser = (req, res, next) => {
   User.findById(req.user._id)
     .then((user) => {
-      if (!user) return res.status(404).send({ message: 'User not found.' });
+      if (!user) throw new NotFoundError('User not found.');
       return res.send({ data: user });
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return res.status(400).send({ message: 'User ID is not valid.' });
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 }
 
-module.exports.createUser = (req, res) => {
+module.exports.createUser = (req, res, next) => {
   const { name, about, avatar, email, password } = req.body;
 
   bcrypt.hash(password, 10)
@@ -44,19 +44,16 @@ module.exports.createUser = (req, res) => {
       return User.create({ name, about, avatar, email, password: hash });
       })
     .then((user) => {
-      if (!user) return res.status(500).send({ message: 'Requested resource was not located.' });
+      if (!user) throw new NotFoundError('Requested resource was not located.');
       return res.send({ data: user });
     })
-    .catch((err) => {
-      if (err.name === 'ValidationError') return res.status(400).send({ message: 'Please provide a valid URL for the user\'s avatar.' });
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };
 
-module.exports.updateUserAvatar = (req, res) => {
+module.exports.updateUserAvatar = (req, res, next) => {
   const { avatar } = req.body;
 
-  if (!avatar) res.status(400).send({ message: 'Please provide a URL for the user\'s avatar.' });
+  if (!avatar) throw new BadRequestError('Please provide a URL for the user\'s avatar.');
 
   User.findByIdAndUpdate(req.user._id, { avatar }, {
     new: true,
@@ -64,20 +61,16 @@ module.exports.updateUserAvatar = (req, res) => {
     upsert: false,
   })
     .then((user) => {
-      if (!user) return res.status(404).send({ message: 'Unable to locate user.' });
+      if (!user) throw new NotFoundError('Unable to locate user.');
       return res.send({ data: user });
     })
-    .catch((err) => {
-      if (err.name === 'ValidationError') return res.status(400).send({ message: 'Please provide a valid URL for the user\'s avatar.' });
-      if (err.name === 'CastError') return res.status(400).send({ message: 'User ID is not valid.' });
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };
 
-module.exports.updateUserInformation = (req, res) => {
+module.exports.updateUserInformation = (req, res, next) => {
   const { name, about } = req.body;
 
-  if (!name || !about) res.status(400).send({ message: 'Please provide the user name and about information.' });
+  if (!name || !about) throw new BadRequestError('Please provide the user name and about information.');
 
   User.findByIdAndUpdate(req.user._id, { name, about }, {
     new: true,
@@ -85,28 +78,22 @@ module.exports.updateUserInformation = (req, res) => {
     upsert: false,
   })
     .then((user) => {
-      if (!user) return res.status(404).send({ message: 'Unable to locate user.' });
+      if (!user) throw new NotFoundError('Unable to locate user.');
       return res.send({ data: user });
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return res.status(400).send({ message: 'User ID is not valid.' });
-      return res.status(500).send({ message: 'Requested resource was not located.' });
-    });
+    .catch(next);
 };
 
-module.exports.login = (req, res) => {
+module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
 
   User.findUserByCredentials(email, password)
     .then((user) => {
 
-      const token = jwt.sign({ _id: user._id }, 'f04120bcbe69520287749a90ac7a3ac069d11fdc805a76d1e01b87fe3ff7053c',
+      const token = jwt.sign({ _id: user._id }, NODE_ENV === 'production' ? JWT_SECRET : 'f04120bcbe69520287749a90ac7a3ac069d11fdc805a76d1e01b87fe3ff7053c',
         { expiresIn: '7d' }
       )
-
       res.send({ token })
     })
-    .catch((err) => {
-      res.status(401).send({ message: err.message })
-    });
+    .catch(next);
 }
