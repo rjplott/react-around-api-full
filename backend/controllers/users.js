@@ -21,7 +21,7 @@ module.exports.getAllUsers = (req, res, next) => {
 };
 
 module.exports.getUser = (req, res, next) => {
-  User.findById(req.params.id)
+  User.findById(req.params.id).orFail(new NotFoundError('User not found.'))
     .then((user) => {
       if (!user) throw new NotFoundError('User not found.');
       return res.send({ data: user });
@@ -30,7 +30,7 @@ module.exports.getUser = (req, res, next) => {
 };
 
 module.exports.getCurrentUser = (req, res, next) => {
-  User.findById(req.user._id)
+  User.findById(req.user._id).orFail(new NotFoundError('User not found.'))
     .then((user) => {
       if (!user) throw new NotFoundError('User not found.');
       return res.send({ data: user });
@@ -87,6 +87,7 @@ module.exports.updateUserInformation = (req, res, next) => {
     runValidators: true,
     upsert: false,
   })
+    .orFail(new NotFoundError('User not found.'))
     .then((user) => {
       if (!user) throw new NotFoundError('Unable to locate user.');
       return res.send({ data: user });
@@ -99,7 +100,7 @@ module.exports.login = (req, res, next) => {
 
   User.findUserByCredentials(email, password)
     .then((user) => {
-      if (!user) throw new UnauthorizedError('Email or password is incorrect');
+      if (!user) next(new UnauthorizedError('Email or password is incorrect'));
 
       const token = jwt.sign({ _id: user._id }, NODE_ENV === 'production' ? JWT_SECRET : 'f04120bcbe69520287749a90ac7a3ac069d11fdc805a76d1e01b87fe3ff7053c',
         { expiresIn: '7d' });
