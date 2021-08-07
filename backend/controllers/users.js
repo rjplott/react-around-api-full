@@ -1,6 +1,6 @@
-const User = require('../models/user');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const User = require('../models/user');
 
 require('dotenv').config();
 
@@ -8,6 +8,8 @@ const { NODE_ENV, JWT_SECRET } = process.env;
 
 const BadRequestError = require('../errors/bad-request-error');
 const NotFoundError = require('../errors/not-found-error');
+const ConflictError = require('../errors/conflict-error');
+const UnauthorizedError = require('../errors/auth-error');
 
 module.exports.getAllUsers = (req, res, next) => {
   User.find({})
@@ -34,15 +36,23 @@ module.exports.getCurrentUser = (req, res, next) => {
       return res.send({ data: user });
     })
     .catch(next);
-}
+};
 
 module.exports.createUser = (req, res, next) => {
-  const { name, about, avatar, email, password } = req.body;
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
+
+  User.exists({ email })
+    .then((user) => {
+      if (user) throw new ConflictError('Email has already been taken.');
+    })
+    .catch(next);
 
   bcrypt.hash(password, 10)
-    .then(hash => {
-      return User.create({ name, about, avatar, email, password: hash });
-      })
+    .then((hash) => User.create({
+      name, about, avatar, email, password: hash,
+    }))
     .then((user) => {
       if (!user) throw new NotFoundError('Requested resource was not located.');
       return res.send({ data: user });
@@ -89,11 +99,11 @@ module.exports.login = (req, res, next) => {
 
   User.findUserByCredentials(email, password)
     .then((user) => {
+      if (!user) throw new UnauthorizedError('Email or password is incorrect');
 
       const token = jwt.sign({ _id: user._id }, NODE_ENV === 'production' ? JWT_SECRET : 'f04120bcbe69520287749a90ac7a3ac069d11fdc805a76d1e01b87fe3ff7053c',
-        { expiresIn: '7d' }
-      )
-      res.send({ token })
+        { expiresIn: '7d' });
+      res.send({ token });
     })
     .catch(next);
-}
+};

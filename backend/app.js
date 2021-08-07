@@ -1,32 +1,32 @@
 const express = require('express');
+
 const app = express();
 const helmet = require('helmet');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const cardRouter = require('./routes/cards');
-const userRouter = require('./routes/users');
-const auth = require('./middlewares/auth');
-const {requestLogger, errorLogger} = require('./middlewares/logger')
 const cors = require('cors');
 const { errors, celebrate, Joi } = require('celebrate');
 const validator = require('validator');
+const cardRouter = require('./routes/cards');
+const userRouter = require('./routes/users');
+const auth = require('./middlewares/auth');
+const { requestLogger, errorLogger } = require('./middlewares/logger');
 
 const { login, createUser } = require('./controllers/users');
+
 const { PORT = 3000 } = process.env;
 
 function validateUrl(string, helpers) {
   if (!validator.isURL(string)) {
-    return helpers.error(400, '"avatar" is not a valid URL')
+    return helpers.error(400, '"avatar" is not a valid URL');
   }
-  
   return string;
 }
 
 function validateEmail(string, helpers) {
   if (!validator.isEmail(string)) {
-    return helpers.error(400, '"email" is not a valid email address')
+    return helpers.error(400, '"email" is not a valid email address');
   }
-  
   return string;
 }
 
@@ -49,7 +49,7 @@ app.get('/crash-test', () => {
   setTimeout(() => {
     throw new Error('Server will crash now');
   }, 0);
-}); 
+});
 
 app.post('/signin', celebrate({
   body: Joi.object().keys({
@@ -57,14 +57,14 @@ app.post('/signin', celebrate({
     about: Joi.string().min(2).max(30),
     avatar: Joi.string().custom(validateUrl),
     email: Joi.string().required().custom(validateEmail),
-    password: Joi.string().min(8).required()
-  })
+    password: Joi.string().min(8).required(),
+  }),
 }), login);
 app.post('/signup', celebrate({
   body: Joi.object().keys({
     email: Joi.string().required().custom(validateEmail),
-    password: Joi.string().min(8).required()
-  })
+    password: Joi.string().min(8).required(),
+  }),
 }), createUser);
 
 app.use(auth);
@@ -81,12 +81,11 @@ app.use(errorLogger);
 app.use(errors());
 
 app.use((err, req, res, next) => {
-
   const { statusCode = 500, message } = err;
 
-  res.status(statusCode).send({message: statusCode === 500 ? 'An error occured on the server' : message })
-})
+  res.status(statusCode).send({ message: statusCode === 500 ? 'An error occured on the server' : message });
+});
 
 app.listen(PORT, () => {
-  console.log(`App is running on port ${PORT}`);
+
 });
