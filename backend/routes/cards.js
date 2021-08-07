@@ -12,9 +12,8 @@ const {
 
 function validateUrl(string, helpers) {
   if (!validator.isURL(string)) {
-    return helpers.error(400, '"link" is not a valid URL')
+    return helpers.error(400, '"link" is not a valid URL');
   }
-  
   return string;
 }
 
@@ -25,35 +24,35 @@ cardRouter.post('/cards', celebrate({
     name: Joi.string().required().min(2).max(30),
     link: Joi.string().required().custom(validateUrl),
     createdAt: Joi.date(),
-  })
+  }),
 }), createCard);
 
 cardRouter.delete('/cards/:cardId', celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().required().alphanum().length(24)
-  })
+    cardId: Joi.string().required().alphanum().length(24),
+  }),
 }), deleteCard);
 
 cardRouter.put('/cards/:cardId/likes', celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().required().alphanum().length(24)
+    cardId: Joi.string().required().alphanum().length(24),
   }),
   body: Joi.object().keys({
     user: Joi.object().keys({
-      _id: Joi.string().alphanum().length(24)
-    }).unknown(true)
-  })
+      _id: Joi.string().alphanum().length(24),
+    }).unknown(true),
+  }),
 }), addLike);
 
 cardRouter.delete('/cards/:cardId/likes', celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().alphanum().length(24)
+    cardId: Joi.string().alphanum().length(24),
   }),
   body: Joi.object().keys({
     user: Joi.object().keys({
-      _id: Joi.string().alphanum().length(24)
-    }).unknown(true)
-  })
+      _id: Joi.string().alphanum().length(24),
+    }).unknown(true),
+  }),
 }), deleteLike);
 
 module.exports = cardRouter;
